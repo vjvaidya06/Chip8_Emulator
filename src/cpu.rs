@@ -1,6 +1,7 @@
 mod constants;
 mod operations;
 mod stack;
+use std::cmp::max;
 use std::fs::File;
 use std::io::Read;
 use std::io::{Write, stdout};
@@ -9,6 +10,7 @@ use crossterm::{
     execute, queue,
     style::{self, Stylize}, cursor, terminal
 };
+use simply_colored::*;
 //Refactor later if needed
 //Set things back to private at the end
 #[allow(non_snake_case)]
@@ -81,13 +83,43 @@ impl CPU{
         }
         println!("{}", "-".repeat(64));
     }
+    //Implement blocking by pausing this call while a certain flag is true
     pub fn emulate_cycle(&mut self) -> Result<(), CpuError>{
         operations::perform_op(self)?;
         Ok(())
     }
-    pub fn print_reg(&self){
+    pub fn print_all_reg(&self){
         for (i, val) in self.registers.iter().enumerate(){
             println!("V{i}: {val}");
+        }
+    }
+    pub fn print_reg(&self, regnum: usize){
+        if regnum > 15{
+            println!("Register {regnum} doesn't exist. Please specify a number from 0 to 15");
+            return;
+        }
+        println!("V{regnum}: {}", self.registers[regnum]);
+    }
+    pub fn disassemble(&self, start: Option<usize>, lines: usize){
+        let start = start.unwrap_or(self.pc);
+        if start > 4095{
+            println!("Starting line too big, memory ends at 4095");
+            return;
+        }
+        if start % 2 != 0{
+            println!("Can't start on an odd number");
+            return;
+        }
+        
+        let lines = std::cmp::min(lines*2, (4096-start)*2);
+        for i in (0..lines).step_by(2){
+            if self.pc == start+i{
+                print!("=> ");
+            }
+            else{
+                print!("   ");
+            }
+            println!("{BLUE}0x{:04X}{WHITE}:    {RED}0x{:04X}{RESET}", start+i, operations::decode_op(self.memory[start+i], self.memory[start+i+1]));
         }
     }
 }

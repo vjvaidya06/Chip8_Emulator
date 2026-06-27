@@ -33,7 +33,7 @@ pub fn perform_op(c: &mut CPU) -> Result<(), CpuError>{
     if c.pc % 2 != 0 {
         return Err(CpuError::ProgramCounterInvalidLocation(c.pc));
     }
-    println!("Program Counter: {:X} Performing: {:X}", c.pc, decode_op(c.memory[c.pc], c.memory[c.pc+1]));
+//    println!("Program Counter: {:X} Performing: {:X}", c.pc, decode_op(c.memory[c.pc], c.memory[c.pc+1]));
     let leading_num: usize = (c.memory[c.pc] >> 4).into();
     //println!("{leading_num}");
     let _ = constants::LOOKUP[leading_num](c)?;
@@ -41,7 +41,7 @@ pub fn perform_op(c: &mut CPU) -> Result<(), CpuError>{
     //For other jump instructions we jump by 2 instead of 4
     //We can't underflow on these instructions because jmp 0x0 will be a corner case
     //usize can't be less than 0
-    if leading_num != 0x1 && leading_num != 0xA && leading_num != 0xB{
+    if leading_num != 0x1 && leading_num != 0x2 && leading_num != 0xB{
         c.pc += 2;
     }
     Ok(())
@@ -226,5 +226,13 @@ pub(super) fn rand_and(c: &mut CPU) -> Result<(), CpuError>{
     //println!("Setting V{regnum} to {randint} & {}", c.memory[c.pc+1]);
     c.registers[regnum as usize] = randint & c.memory[c.pc + 1];
     //println!("V{regnum}: {:X}", c.registers[regnum as usize]);
+    Ok(())
+}
+
+pub(super) fn draw_sprite(c: &mut CPU) -> Result<(), CpuError>{
+    //This is the hard one.
+    //Start by fetching x and y.
+    //Draw out how it corresponds to the screen tom.
+    //
     Ok(())
 }

@@ -8,6 +8,7 @@ version = "0.1.0"
 dependencies = [
  "crossterm",
  "rand",
+ "simply_colored",
 ]
 
 [[package]]
@@ -442,6 +443,12 @@ dependencies = [
  "errno",
  "libc",
 ]
+
+[[package]]
+name = "simply_colored"
+version = "0.1.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fcf6e9b9bc7cd39363ba9032692b5303940ab16f600fedf844de215c657ec508"
 
 [[package]]
 name = "smallvec"
