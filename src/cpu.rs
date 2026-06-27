@@ -50,6 +50,7 @@ impl CPU{
     //8XY6 and 8XYE can behave differently depending on the implementation
     pub fn toggle_legacy_mode(&mut self){
         self.legacy_mode = !self.legacy_mode;
+        println!("Legacy Mode: {}", self.legacy_mode);
     }
     //Fix this
     //How should the emulator behave when open fails?
@@ -90,7 +91,7 @@ impl CPU{
     }
     pub fn print_all_reg(&self){
         for (i, val) in self.registers.iter().enumerate(){
-            println!("V{i}: {val}");
+            println!("V{i}: {val} or 0x{:02X}", val);
         }
     }
     pub fn print_reg(&self, regnum: usize){
@@ -98,10 +99,14 @@ impl CPU{
             println!("Register {regnum} doesn't exist. Please specify a number from 0 to 15");
             return;
         }
-        println!("V{regnum}: {}", self.registers[regnum]);
+        println!("V{regnum}: {} or 0x{:02X}", self.registers[regnum], self.registers[regnum]);
     }
-    pub fn disassemble(&self, start: Option<usize>, lines: usize){
-        let start = start.unwrap_or(self.pc);
+    pub fn disassemble(&self, st: Option<usize>, lines: usize){
+        let start = match self.pc{
+            x if x >= 0x200 => st.unwrap_or(max(0x200, self.pc - 8)),
+            x if x < 0x008 => st.unwrap_or(0x000),
+            _ => st.unwrap_or(self.pc - 8)
+        };
         if start > 4095{
             println!("Starting line too big, memory ends at 4095");
             return;

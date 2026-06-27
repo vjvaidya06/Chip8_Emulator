@@ -30,11 +30,12 @@ fn parse_input(tokens: &[&str], c: &mut CPU, b: &mut HashSet<usize>){
        "print"|"p" => print_register(tokens, c),
        "step"|"s" => step(c),
        "screen"|"sc" => c.draw_screen(),
-       "jump"|"j" => jump(tokens, c),
+       "jump"|"jmp"|"j" => jump(tokens, c),
        "break"|"b" => set_breakpoint(tokens, c, b),
        "continue"|"c" => continue_till_breakpoint(c, b),
        "delete"|"d" => delete_breakpoint(tokens, c, b),
        "help"|"h" => help(),
+       "legacy"|"leg" => c.toggle_legacy_mode(),
        "quit" => std::process::exit(0),
         _ => println!("Undefined command: {}, type help or h for help", tokens[0])
     }
@@ -48,13 +49,21 @@ fn help(){
     println!("disassemble/dis [NUM LINES=10] [ADDRESS=PC]    Prints the assembly instructions starting at the selected memory address.\n");
     println!("step/s                                         Steps one instruction.\n");
     println!("screen/sc                                      Displays the Chip 8 screen.\n");
-    println!("jump/j [ADDRESS]                               Jumps to the selected memory address.\n");
+    println!("jump/jmp/j [ADDRESS]                           Jumps to the selected memory address.\n");
     println!("break/b [ADDRESS]                              Sets a break point at the selected memory address.\n");
     println!("delete/d [ADDRESS]                             Deletes the break point at the selected memory address.\n");
     println!("continue/c                                     Runs the program until it encounters a break point, or ends.\n");
+    println!("legacy/leg                                     Toggle legacy mode.\n");
     println!("help/h                                         You're already here.\n");
     println!("Any memory address can be input as decimal or hexadecimal. If using hex, prefix with 0x.\n");
 }
+
+//If I feel like it 
+//This command is somewhat dangerous anyway
+//Replaces the provided instruction with a new one
+/*fn replace_instruction(tokens: &[&str], c: &mut CPU){
+
+}*/
 
 fn delete_breakpoint(tokens: &[&str], c: &mut CPU, b: &mut HashSet<usize>){
     if tokens.len() < 2{
