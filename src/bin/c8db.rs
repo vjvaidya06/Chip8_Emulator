@@ -28,14 +28,15 @@ fn parse_input(tokens: &[&str], c: &mut CPU, b: &mut HashSet<usize>){
        "load"|"l" => load(tokens, c),
        "disassemble"|"dis" => disassemble(tokens, c),
        "print"|"p" => print_register(tokens, c),
-       "step"|"s" => step(c),
-       "screen"|"sc" => c.draw_screen(),
+       "step"|"s" => step(tokens, c),
+       "screen"|"sc" => c.draw_screen(true),
        "jump"|"jmp"|"j" => jump(tokens, c),
        "break"|"b" => set_breakpoint(tokens, c, b),
        "continue"|"c" => continue_till_breakpoint(c, b),
        "delete"|"d" => delete_breakpoint(tokens, c, b),
        "help"|"h" => help(),
        "legacy"|"leg" => c.toggle_legacy_mode(),
+       "stack"|"stk" => c.print_stack(),
        "quit" => std::process::exit(0),
         _ => println!("Undefined command: {}, type help or h for help", tokens[0])
     }
@@ -45,7 +46,7 @@ fn help(){
     println!("Chip 8 Debugger (C8DB), inspired by GNU Debugger (GDB)\n\n");
     println!("Below are a list of all possible commands\n\n");
     println!("load/l [FILEPATH]                              Loads the binary file located at the selected path.\n");
-    println!("print/p [NUM]/all                              Prints a register from 0-15, or type all to print them all\n");
+    println!("print/p [NUM]/all                              Prints a register from 0-15 (or I), or type all to print them all\n");
     println!("disassemble/dis [NUM LINES=10] [ADDRESS=PC]    Prints the assembly instructions starting at the selected memory address.\n");
     println!("step/s                                         Steps one instruction.\n");
     println!("screen/sc                                      Displays the Chip 8 screen.\n");
@@ -54,6 +55,7 @@ fn help(){
     println!("delete/d [ADDRESS]                             Deletes the break point at the selected memory address.\n");
     println!("continue/c                                     Runs the program until it encounters a break point, or ends.\n");
     println!("legacy/leg                                     Toggle legacy mode.\n");
+    println!("stack/stk                                      Prints the call stack.\n");
     println!("help/h                                         You're already here.\n");
     println!("Any memory address can be input as decimal or hexadecimal. If using hex, prefix with 0x.\n");
 }
@@ -165,7 +167,6 @@ fn load(tokens: &[&str], c: &mut CPU){
 }
 
 fn disassemble(tokens: &[&str], c: &mut CPU){
-    println!("0x200 and 201: {:X}{:X}", c.memory[0x200], c.memory[0x201]);
     if tokens.len() < 2{
         c.disassemble(None, 10);
         return;
@@ -195,6 +196,10 @@ fn print_register(tokens: &[&str], c: &mut CPU){
         c.print_all_reg();
         return;
     }
+    if tokens[1] == "I" || tokens[1] == "i"{
+        c.print_i_reg();
+        return;
+    }
     let Ok(regnum) = tokens[1].parse::<usize>() else {
         println!("Not an integer");
         return;
@@ -202,9 +207,15 @@ fn print_register(tokens: &[&str], c: &mut CPU){
     c.print_reg(regnum);
 }
 
-fn step(c: &mut CPU){
-    if let Err(e) = c.emulate_cycle(){
-        println!("Program received error: {}", e);
+fn step(tokens: &[&str], c: &mut CPU){
+    let num = tokens
+        .get(1)
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(1);
+    for _ in 0..num{
+        if let Err(e) = c.emulate_cycle(){
+            println!("Program received error: {}", e);
+        }
     }
 }
 
