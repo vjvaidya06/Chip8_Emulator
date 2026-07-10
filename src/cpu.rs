@@ -59,11 +59,13 @@ impl CPU{
         file.read(&mut self.memory[512..])?;
         Ok(())
     }
-    pub fn draw_screen(&self){
+    pub fn draw_screen(&self, debug: bool){
         let mut stdout = stdout();
-        if let Err(_) = execute!(stdout, terminal::Clear(terminal::ClearType::All), cursor::MoveTo(5, 5)){
-            println!("Terminal clear or cursor move failed");
-            std::process::exit(1);
+        if !debug{
+            if let Err(_) = execute!(stdout, terminal::Clear(terminal::ClearType::All), cursor::MoveTo(5, 5)){
+                println!("Terminal clear or cursor move failed");
+                std::process::exit(1);
+            }
         }
         println!();
         println!("{}", "-".repeat(64));
@@ -93,6 +95,10 @@ impl CPU{
         for (i, val) in self.registers.iter().enumerate(){
             println!("V{i}: {val} or 0x{:02X}", val);
         }
+        println!("I: {} or 0x{:03X}", self.I, self.I);
+    }
+    pub fn print_i_reg(&self){
+        println!("I: {} or 0x{:03X}", self.I, self.I);
     }
     pub fn print_reg(&self, regnum: usize){
         if regnum > 15{
@@ -126,6 +132,9 @@ impl CPU{
             }
             println!("{BLUE}0x{:04X}{WHITE}:    {RED}0x{:04X}{RESET}", start+i, operations::decode_op(self.memory[start+i], self.memory[start+i+1]));
         }
+    }
+    pub fn print_stack(&self){
+        self.stack.print_stack();
     }
 }
 

@@ -28,8 +28,17 @@ impl Stack{
         if self.sp == 12{
             return Err(CpuError::StackOverflowError);
         }
+        println!("pushing to stack");
         self.stack[self.sp as usize] = val;
         self.sp += 1;
         Ok(())
+    }
+    pub fn print_stack(&self){
+        if self.sp == 0{
+            println!("Stack empty");
+        }
+        for i in (0..self.sp).rev(){
+            println!("At location {i}: {:04X}", self.stack[i as usize]);
+        }
     }
 }

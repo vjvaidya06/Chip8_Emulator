@@ -21,10 +21,10 @@ pub const FONTSET: [u8; 80] = [
             0xF0, 0x80, 0xF0, 0x80, 0x80, // F];
         ];
 
-pub(super) const LOOKUP: [fn(&mut CPU) -> Result<(), CpuError>;13] = [
+pub(super) const LOOKUP: [fn(&mut CPU) -> Result<(), CpuError>;14] = [
     operations::op_screen,      //0???
     operations::jmp_addr,       //1NNN
-    operations::jmp_addr,       //2??? (placeholder)
+    operations::call,           //2NNN
     operations::jmp_if_eq,      //3XNN
     operations::jmp_if_neq,     //4XNN
     operations::jmp_if_reg_eq,  //5XY0
@@ -35,6 +35,7 @@ pub(super) const LOOKUP: [fn(&mut CPU) -> Result<(), CpuError>;13] = [
     operations::set_i_to_addr,  //ANNN
     operations::jmp_plus,       //BNNN
     operations::rand_and,       //CXNN
+    operations::draw_sprite     //DXYN
 ];
 
 //pub const THEMES: [char;2] = ['⬜', '⬛'];

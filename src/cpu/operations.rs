@@ -52,7 +52,7 @@ pub(super) fn op_screen(c: &mut CPU) -> Result<(), CpuError>{
     //00E0
     //I thought the whole point of a nested function was that I didn't have to do this
     fn clear(c: &mut CPU){
-        println!("Clearing screen");
+        //println!("Clearing screen");
         c.gfx.fill(false);
     }
     //00EE
@@ -176,7 +176,7 @@ pub(super) fn reg_op(c: &mut CPU) -> Result<(), CpuError>{
             if overflow {c.registers[0xF] = 1;} else {c.registers[0xF] = 0;}
         }
         0xE => {
-            let mut temp = 0;
+            let temp;
             if c.legacy_mode{
                 temp = (c.registers[regnum2 as usize] & 0x80) >> 7;
                 c.registers[regnum1 as usize] = c.registers[regnum2 as usize] << 1;
@@ -229,10 +229,27 @@ pub(super) fn rand_and(c: &mut CPU) -> Result<(), CpuError>{
     Ok(())
 }
 
+//DXYN
 pub(super) fn draw_sprite(c: &mut CPU) -> Result<(), CpuError>{
-    //This is the hard one.
-    //Start by fetching x and y.
-    //Draw out how it corresponds to the screen tom.
-    //
+    let regnum1 = c.memory[c.pc] & 0x0F;
+    let regnum2 = (c.memory[c.pc+1] & 0xF0) >> 4;
+    let n = c.memory[c.pc+1] & 0x0F;
+    let mut location = (64*((c.registers[regnum2 as usize] as usize))) + c.registers[regnum1 as usize] as usize - 2;
+    for i in 0..n{
+        let bitmap: u8 = c.memory[(c.I + i as u16) as usize];
+        //Fetch the top bit, xor it with the equivalent screen bit, 
+        //update the collision flag if needed
+        for j in 0..8{
+            let bit = if ((bitmap << j) & 0b10000000) >> 7 == 1 {true} else {false};
+            if bit && c.gfx[location]{
+                //Collision detected
+                c.registers[0x0F] = 1;
+            }
+            c.gfx[location] = c.gfx[location] ^ bit;
+            location += 1;
+        }
+        //64 - 8
+        location += 56;
+    }
     Ok(())
 }

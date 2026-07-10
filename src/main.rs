@@ -30,7 +30,7 @@ fn main() {
     //cpu.emulate_cycle();
     // cpu.gfx[0] = true;
     // cpu.gfx[32] = true;
-    // cpu.draw_screen();
+    // cpu.draw_screen(debug = false);
     //Jump to AAB
     //cpu.memory[0x200] = 0x1A;
     //cpu.memory[0x201] = 0xAB;
