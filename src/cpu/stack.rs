@@ -28,7 +28,7 @@ impl Stack{
         if self.sp == 12{
             return Err(CpuError::StackOverflowError);
         }
-        println!("pushing to stack");
+        //println!("pushing to stack");
         self.stack[self.sp as usize] = val;
         self.sp += 1;
         Ok(())

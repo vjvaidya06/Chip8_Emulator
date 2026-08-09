@@ -11,6 +11,7 @@ use crossterm::{
     style::{self, Stylize}, cursor, terminal
 };
 use simply_colored::*;
+use std::time::Duration;
 //Refactor later if needed
 //Set things back to private at the end
 #[allow(non_snake_case)]
@@ -19,13 +20,21 @@ pub struct CPU{
     pub registers: [u8;16],
     I: u16,
     pub pc: usize,
-    //May want a wrapper class for this later
     stack: stack::Stack,
-    key: [u8;16],
+    keypad: [bool;16],
     pub gfx: [bool;64*32],
     legacy_mode: bool,
+    delay_timer: Duration,
+    sound_timer: Duration,
+    //If blocking, set this to Some(key), where key is the key being waited for
+    blocking : Option<u8>,
     on_char: u8,
     off_char: u8
+}
+impl Default for CPU{
+    fn default() -> Self{
+        Self::new()
+    }
 }
 impl CPU{
     pub fn new() -> CPU {
@@ -35,9 +44,12 @@ impl CPU{
             I: 0,
             pc: 0x200,
             stack: stack::Stack::new(),
-            key: [0;16],
+            keypad: [false;16],
             gfx: [false;64*32],
             legacy_mode: false,
+            delay_timer: Duration::ZERO,
+            sound_timer: Duration::ZERO,
+            blocking: None,
             on_char: 16,
             off_char: 1
 
@@ -52,7 +64,7 @@ impl CPU{
         self.legacy_mode = !self.legacy_mode;
         println!("Legacy Mode: {}", self.legacy_mode);
     }
-    //Fix this
+
     //How should the emulator behave when open fails?
     pub fn load_game(&mut self, path: &str) -> Result<(), std::io::Error>{
         let mut file = File::open(path)?;
@@ -62,8 +74,8 @@ impl CPU{
     pub fn draw_screen(&self, debug: bool){
         let mut stdout = stdout();
         if !debug{
-            if let Err(_) = execute!(stdout, terminal::Clear(terminal::ClearType::All), cursor::MoveTo(5, 5)){
-                println!("Terminal clear or cursor move failed");
+            if let Err(e) = execute!(stdout, terminal::Clear(terminal::ClearType::All), cursor::MoveTo(5, 5)){
+                println!("Terminal clear or cursor move failed, threw error: {e}");
                 std::process::exit(1);
             }
         }
@@ -76,8 +88,8 @@ impl CPU{
                     true => constants::COLORS[self.on_char as usize],
                     false => constants::COLORS[self.off_char as usize],
                 };
-                if let Err(_) = stdout.queue(style::PrintStyledContent( "█".with(wrchar))){
-                    println!("Terminal print failed");
+                if let Err(e) = stdout.queue(style::PrintStyledContent( "█".with(wrchar))){
+                    println!("Terminal print failed, threw error: {e}");
                     std::process::exit(1);
                 }
             }
@@ -86,11 +98,34 @@ impl CPU{
         }
         println!("{}", "-".repeat(64));
     }
-    //Implement blocking by pausing this call while a certain flag is true
+    pub fn decrement_timers(&self){
+        //let sound_accumulator = self.sound_timer.elapsed();
+        //Check if more than 1/60 seconds has elapsed.
+        //Decrement the timers. Stop at 0.
+        //If the sound timer is 0, play a sound, and then set it to -1?
+        //We only need to play the sound once
+    }
+    pub fn toggle_key(&mut self, key: u8){
+        if key > 15{
+            println!("Key must be between 0 and 15");
+            return;
+        }
+        self.keypad[key as usize] = !self.keypad[key as usize];
+    }
     pub fn emulate_cycle(&mut self) -> Result<(), CpuError>{
-        operations::perform_op(self)?;
+        //If blocking, wait for a certain key press
+        match self.blocking{
+            None => operations::perform_op(self)?,
+            Some(key) => {
+                println!("Waiting for key {key}");
+                if self.keypad[key as usize]{
+                    self.blocking = None;
+                }
+            }
+        }
         Ok(())
     }
+    //Below are all debug functions meant to be used with c8db
     pub fn print_all_reg(&self){
         for (i, val) in self.registers.iter().enumerate(){
             println!("V{i}: {val} or 0x{:02X}", val);
@@ -136,6 +171,18 @@ impl CPU{
     pub fn print_stack(&self){
         self.stack.print_stack();
     }
+    pub fn print_keypad(&self, keynum: Option<u8>){
+        match keynum{
+            None => {
+                println!("Current Keypad status:");
+                for (i, key) in self.keypad.iter().enumerate(){
+                    println!("Key {i}: {key}");
+                }
+            }
+            Some(key) if key > 15 => println!("Please include a number from 0 to 15"),
+            Some(key) => println!("Key {key}: {}", self.keypad[key as usize])
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -150,6 +197,7 @@ pub enum CpuError {
     StackUnderflowError,
 
     StackOverflowError,
+    OutofBoundsAccess
 }
 
 impl std::fmt::Display for CpuError {
@@ -165,6 +213,7 @@ impl std::fmt::Display for CpuError {
             //CpuError::StackError(msg) => write!(f, "CPU Error: Stack error: {}", msg),
             CpuError::StackOverflowError => write!(f, "Stack overflow error, the Chip 8 stack only allows up to 12 levels of nesting"),
             CpuError::StackUnderflowError => write!(f, "Stack undeflow error, there's nothing currently on the stack"),
+            CpuError::OutofBoundsAccess => write!(f, "Out of bounds access attempted")
         }
     }
 }

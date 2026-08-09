@@ -21,7 +21,7 @@ pub const FONTSET: [u8; 80] = [
             0xF0, 0x80, 0xF0, 0x80, 0x80, // F];
         ];
 
-pub(super) const LOOKUP: [fn(&mut CPU) -> Result<(), CpuError>;14] = [
+pub(super) const LOOKUP: [fn(&mut CPU) -> Result<(), CpuError>;16] = [
     operations::op_screen,      //0???
     operations::jmp_addr,       //1NNN
     operations::call,           //2NNN
@@ -35,7 +35,9 @@ pub(super) const LOOKUP: [fn(&mut CPU) -> Result<(), CpuError>;14] = [
     operations::set_i_to_addr,  //ANNN
     operations::jmp_plus,       //BNNN
     operations::rand_and,       //CXNN
-    operations::draw_sprite     //DXYN
+    operations::draw_sprite,    //DXYN
+    operations::e_key_op,       //EX??
+    operations::f_op,           //FX??
 ];
 
 //pub const THEMES: [char;2] = ['⬜', '⬛'];

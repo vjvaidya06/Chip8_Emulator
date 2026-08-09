@@ -36,7 +36,7 @@ pub fn perform_op(c: &mut CPU) -> Result<(), CpuError>{
 //    println!("Program Counter: {:X} Performing: {:X}", c.pc, decode_op(c.memory[c.pc], c.memory[c.pc+1]));
     let leading_num: usize = (c.memory[c.pc] >> 4).into();
     //println!("{leading_num}");
-    let _ = constants::LOOKUP[leading_num](c)?;
+    constants::LOOKUP[leading_num](c)?;
     //These are instructions that directly modify the program counter 
     //For other jump instructions we jump by 2 instead of 4
     //We can't underflow on these instructions because jmp 0x0 will be a corner case
@@ -252,4 +252,60 @@ pub(super) fn draw_sprite(c: &mut CPU) -> Result<(), CpuError>{
         location += 56;
     }
     Ok(())
+}
+
+//EX??
+pub(super) fn e_key_op(c: &mut CPU) -> Result<(), CpuError>{
+    let regnum = c.memory[c.pc] & 0x0F;
+    let keynum = c.registers[regnum as usize];
+    let cmp = match c.memory[c.pc+1]{
+        0x9E => c.keypad[keynum as usize],
+        0xA1 => !c.keypad[keynum as usize],
+        _ => return Err(CpuError::UnknownOpcode(decode_op(c.memory[c.pc], c.memory[c.pc+1])))
+
+    };
+    if cmp{
+        c.pc += 2;
+    }
+    Ok(())
+}
+
+//FX??
+pub(super) fn f_op(c: &mut CPU) -> Result<(), CpuError>{
+    let regnum = c.memory[c.pc] & 0x0F;
+    match c.memory[c.pc+1]{
+        0x07 => get_delay(c, regnum),
+        0x0A => wait_for_key(c, regnum),
+        0x15 => println!("timer"),
+        0x18 => println!("sound"),
+        0x1E => add_vx_i(c, regnum),
+        0x29 => get_sprite_addr(c, regnum),
+        0x33 => println!("bcd"),
+        0x55 => println!("memory"),
+        0x65 => println!("memory"),
+        _ => return Err(CpuError::UnknownOpcode(decode_op(c.memory[c.pc], c.memory[c.pc+1])))
+    }
+    Ok(())
+}
+
+fn get_delay(c: &mut CPU, regnum: u8){
+    println!("unimplemented");
+    // c.registers[regnum as usize] = c.delay_timer;
+}
+
+fn add_vx_i(c: &mut CPU, regnum: u8){
+    c.I += c.registers[regnum as usize] as u16;
+}
+
+fn get_sprite_addr(c: &mut CPU, regnum: u8){
+    c.I = ((c.registers[regnum as usize] & 0x0F) * 5) as u16;
+}
+
+fn wait_for_key(c: &mut CPU, regnum: u8){
+    if c.keypad[regnum as usize]{
+        c.blocking = None;
+    }
+    else{
+        c.blocking = Some(c.registers[regnum as usize]);
+    }
 }
