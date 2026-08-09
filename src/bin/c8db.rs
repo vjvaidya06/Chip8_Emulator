@@ -2,6 +2,7 @@ use Chip_8::cpu::CPU;
 use std::io::{self, Write};
 use std::collections::HashSet;
 
+//TODO: Implement blocking and timer
 fn main(){
     let mut c = CPU::new();
     //println!("Hello world");
@@ -34,6 +35,8 @@ fn parse_input(tokens: &[&str], c: &mut CPU, b: &mut HashSet<usize>){
        "break"|"b" => set_breakpoint(tokens, c, b),
        "continue"|"c" => continue_till_breakpoint(c, b),
        "delete"|"d" => delete_breakpoint(tokens, c, b),
+       "keypad"|"kp" => keypad(c, tokens),
+       "key"|"k" => key(c, tokens),
        "help"|"h" => help(),
        "legacy"|"leg" => c.toggle_legacy_mode(),
        "stack"|"stk" => c.print_stack(),
@@ -56,6 +59,8 @@ fn help(){
     println!("continue/c                                     Runs the program until it encounters a break point, or ends.\n");
     println!("legacy/leg                                     Toggle legacy mode.\n");
     println!("stack/stk                                      Prints the call stack.\n");
+    println!("key/k [KEY NUMBER]                             Toggles the key at key number (0-15)\n");
+    println!("keypad/kp                                      Prints the current state of the keypad\n");
     println!("help/h                                         You're already here.\n");
     println!("Any memory address can be input as decimal or hexadecimal. If using hex, prefix with 0x.\n");
 }
@@ -66,6 +71,26 @@ fn help(){
 /*fn replace_instruction(tokens: &[&str], c: &mut CPU){
 
 }*/
+
+fn keypad(c: &CPU, tokens: &[&str]){
+    let num = tokens
+        .get(1)
+        .and_then(|s| s.parse().ok());
+
+    c.print_keypad(num);
+}
+
+fn key(c: &mut CPU, tokens: &[&str]){
+    if tokens.len() < 2{
+        println!("Please include a key number from 0 to 15");
+        return;
+    }
+    if let Ok(keynum) = tokens[1].parse::<u8>(){
+        c.toggle_key(keynum);
+    }else{
+        println!("Please include a key number from 0 to 15");
+    }
+}
 
 fn delete_breakpoint(tokens: &[&str], c: &mut CPU, b: &mut HashSet<usize>){
     if tokens.len() < 2{
