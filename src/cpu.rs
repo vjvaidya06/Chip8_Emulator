@@ -1,43 +1,69 @@
 mod constants;
 mod operations;
 mod stack;
+mod timer;
 use std::cmp::max;
+use std::collections::HashMap;
 use std::fs::File;
 use std::io::Read;
-use std::io::{Write, stdout};
+use std::io::stdout;
 use crossterm::QueueableCommand;
 use crossterm::{
-    execute, queue,
+    execute,
     style::{self, Stylize}, cursor, terminal
 };
 use simply_colored::*;
-use std::time::Duration;
 //Refactor later if needed
 //Set things back to private at the end
 #[allow(non_snake_case)]
 pub struct CPU{
-    pub memory: [u8;4096],
-    pub registers: [u8;16],
+    memory: [u8;4096],
+    registers: [u8;16],
     I: u16,
     pub pc: usize,
     stack: stack::Stack,
     keypad: [bool;16],
-    pub gfx: [bool;64*32],
+    gfx: [bool;64*32],
     legacy_mode: bool,
-    delay_timer: Duration,
-    sound_timer: Duration,
+    delay_timer: timer::Chip8Timer,
+    sound_timer: timer::Chip8Timer,
     //If blocking, set this to Some(key), where key is the key being waited for
     blocking : Option<u8>,
     on_char: u8,
-    off_char: u8
+    off_char: u8,
+    bindings: HashMap<char, usize>,
+    pub draw: bool
 }
 impl Default for CPU{
     fn default() -> Self{
-        Self::new()
+        Self::new(None)
     }
 }
 impl CPU{
-    pub fn new() -> CPU {
+    pub fn new(bindings: Option<HashMap<char, usize>>) -> CPU {
+        let bindings = match bindings{
+            Some(map) => map,
+            None => {
+                HashMap::from([
+                ('1', 0),
+                ('2', 1),
+                ('a', 8),
+                ('3', 2),
+                ('4', 3),
+                ('c', 14),
+                ('q', 4),
+                ('x', 13),
+                ('v', 15),
+                ('w', 5),
+                ('d', 10),
+                ('r', 7),
+                ('e', 6),
+                ('f', 11),
+                ('s', 9),
+                ('z', 12),
+            ])
+            }
+        };
         let mut c = CPU {
             memory: [0;4096],
             registers: [0;16],
@@ -47,17 +73,19 @@ impl CPU{
             keypad: [false;16],
             gfx: [false;64*32],
             legacy_mode: false,
-            delay_timer: Duration::ZERO,
-            sound_timer: Duration::ZERO,
+            delay_timer: timer::Chip8Timer::new(None, 0.0),
+            sound_timer: timer::Chip8Timer::new(None, 0.0),
             blocking: None,
             on_char: 16,
-            off_char: 1
+            off_char: 1,
+            bindings,
+            draw: false
 
         };
         for i in 0..80{
             c.memory[i] = constants::FONTSET[i];
         }
-        return c;
+        c
     }
     //8XY6 and 8XYE can behave differently depending on the implementation
     pub fn toggle_legacy_mode(&mut self){
@@ -75,7 +103,7 @@ impl CPU{
         let mut stdout = stdout();
         if !debug{
             if let Err(e) = execute!(stdout, terminal::Clear(terminal::ClearType::All), cursor::MoveTo(5, 5)){
-                println!("Terminal clear or cursor move failed, threw error: {e}");
+                eprintln!("Terminal clear or cursor move failed, threw error: {e}");
                 std::process::exit(1);
             }
         }
@@ -89,7 +117,7 @@ impl CPU{
                     false => constants::COLORS[self.off_char as usize],
                 };
                 if let Err(e) = stdout.queue(style::PrintStyledContent( "█".with(wrchar))){
-                    println!("Terminal print failed, threw error: {e}");
+                    eprintln!("Terminal print failed, threw error: {e}");
                     std::process::exit(1);
                 }
             }
@@ -98,12 +126,11 @@ impl CPU{
         }
         println!("{}", "-".repeat(64));
     }
-    pub fn decrement_timers(&self){
-        //let sound_accumulator = self.sound_timer.elapsed();
-        //Check if more than 1/60 seconds has elapsed.
-        //Decrement the timers. Stop at 0.
-        //If the sound timer is 0, play a sound, and then set it to -1?
-        //We only need to play the sound once
+    pub fn decrement_timers(&mut self){
+        self.delay_timer.update();
+        if self.sound_timer.update(){
+            println!("BEEP");
+        }
     }
     pub fn toggle_key(&mut self, key: u8){
         if key > 15{
@@ -113,6 +140,13 @@ impl CPU{
         self.keypad[key as usize] = !self.keypad[key as usize];
     }
     pub fn emulate_cycle(&mut self) -> Result<(), CpuError>{
+        if self.draw{
+            //This breaks c8db
+            // self.draw_screen(false);
+            //Until I have real graphics, just let main/c8db handle it
+            //Make the draw flag public
+            self.draw = false;
+        }
         //If blocking, wait for a certain key press
         match self.blocking{
             None => operations::perform_op(self)?,

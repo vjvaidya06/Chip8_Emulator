@@ -17,7 +17,6 @@
 //Bitwise and I with 0x0FFF every time
 use super::{CPU, CpuError};
 use super::constants;
-use rand::RngExt;
 
 
 pub fn decode_op(m1: u8, m2: u8) -> u16{
@@ -54,6 +53,7 @@ pub(super) fn op_screen(c: &mut CPU) -> Result<(), CpuError>{
     fn clear(c: &mut CPU){
         //println!("Clearing screen");
         c.gfx.fill(false);
+        c.draw = true;
     }
     //00EE
     fn op_return(c: &mut CPU) -> Result<(), CpuError>{
@@ -113,7 +113,7 @@ pub(super) fn jmp_if_reg_eq(c: &mut CPU) -> Result<(), CpuError>{
         return Err(CpuError::UnknownOpcode(decode_op(c.memory[c.pc], c.memory[c.pc+1])));
     }
     let regnum1 = c.memory[c.pc] & 0x0F;
-    let regnum2 = c.memory[c.pc+1] > 4;
+    let regnum2 = c.memory[c.pc+1] >> 4;
     if c.registers[regnum1 as usize] == c.registers[regnum2 as usize]{
         c.pc += 2;
     }
@@ -129,8 +129,11 @@ pub(super) fn set_reg(c: &mut CPU) -> Result<(), CpuError>{
 
 //7XNN
 pub(super) fn add_reg(c: &mut CPU) -> Result<(), CpuError>{
+    // println!("Instruction: {:X}", decode_op(c.memory[c.pc], c.memory[c.pc+1]));
     let regnum = c.memory[c.pc] & 0x0F;
-    c.registers[regnum as usize] += c.memory[c.pc+1];
+    // println!("Adding {:X} to register {regnum}", c.memory[c.pc+1]);
+    // println!();
+    (c.registers[regnum as usize], _) = c.registers[regnum as usize].overflowing_add(c.memory[c.pc+1]);
     Ok(())
 }
 //8XY?
@@ -160,7 +163,7 @@ pub(super) fn reg_op(c: &mut CPU) -> Result<(), CpuError>{
             if overflow {c.registers[0xF] = 1;} else {c.registers[0xF] = 0;}
         }
         0x6 => {
-            let mut temp = 0;
+            let temp;
             if c.legacy_mode{
                 temp = c.registers[regnum2 as usize] & 1;
                 c.registers[regnum1 as usize] = c.registers[regnum2 as usize] >> 1;
@@ -195,11 +198,11 @@ pub(super) fn reg_op(c: &mut CPU) -> Result<(), CpuError>{
 //9XY0
 pub(super) fn jmp_if_reg_neq(c: &mut CPU) -> Result<(), CpuError>{
     //Invalid Operation
-    if c.memory[c.pc+1] & 0xF0 != 0{
+    if c.memory[c.pc+1] & 0x0F != 0{
         return Err(CpuError::UnknownOpcode(decode_op(c.memory[c.pc], c.memory[c.pc+1])));
     }
     let regnum1 = c.memory[c.pc] & 0x0F;
-    let regnum2 = c.memory[c.pc+1] > 4;
+    let regnum2 = c.memory[c.pc+1] >> 4;
     if c.registers[regnum1 as usize] != c.registers[regnum2 as usize]{
         c.pc += 2;
     }
@@ -234,23 +237,27 @@ pub(super) fn draw_sprite(c: &mut CPU) -> Result<(), CpuError>{
     let regnum1 = c.memory[c.pc] & 0x0F;
     let regnum2 = (c.memory[c.pc+1] & 0xF0) >> 4;
     let n = c.memory[c.pc+1] & 0x0F;
-    let mut location = (64*((c.registers[regnum2 as usize] as usize))) + c.registers[regnum1 as usize] as usize - 2;
+    //TODO: Fix
+    // let mut location = (64*(c.registers[regnum2 as usize] as usize)) + c.registers[regnum1 as usize] as usize - 2;
+    let mut location = (64*(c.registers[regnum2 as usize] as usize)) + c.registers[regnum1 as usize] as usize;
     for i in 0..n{
         let bitmap: u8 = c.memory[(c.I + i as u16) as usize];
         //Fetch the top bit, xor it with the equivalent screen bit, 
         //update the collision flag if needed
         for j in 0..8{
-            let bit = if ((bitmap << j) & 0b10000000) >> 7 == 1 {true} else {false};
+            // let bit = if ((bitmap << j) & 0b10000000) >> 7 == 1 {true} else {false};
+            let bit = ((bitmap << j) & 0b10000000) >> 7 == 1;
             if bit && c.gfx[location]{
                 //Collision detected
                 c.registers[0x0F] = 1;
             }
-            c.gfx[location] = c.gfx[location] ^ bit;
+            c.gfx[location] ^= bit;
             location += 1;
         }
         //64 - 8
         location += 56;
     }
+    c.draw = true;
     Ok(())
 }
 
@@ -276,21 +283,37 @@ pub(super) fn f_op(c: &mut CPU) -> Result<(), CpuError>{
     match c.memory[c.pc+1]{
         0x07 => get_delay(c, regnum),
         0x0A => wait_for_key(c, regnum),
-        0x15 => println!("timer"),
-        0x18 => println!("sound"),
+        0x15 => delay_timer(c, regnum),
+        0x18 => sound_timer(c, regnum),
         0x1E => add_vx_i(c, regnum),
         0x29 => get_sprite_addr(c, regnum),
-        0x33 => println!("bcd"),
-        0x55 => println!("memory"),
-        0x65 => println!("memory"),
+        0x33 => set_bcd(c, regnum),
+        0x55 => reg_dump(c, regnum),
+        0x65 => reg_load(c, regnum),
         _ => return Err(CpuError::UnknownOpcode(decode_op(c.memory[c.pc], c.memory[c.pc+1])))
     }
     Ok(())
 }
 
 fn get_delay(c: &mut CPU, regnum: u8){
-    println!("unimplemented");
-    // c.registers[regnum as usize] = c.delay_timer;
+    c.registers[regnum as usize] = c.delay_timer.duration as u8;
+}
+
+fn wait_for_key(c: &mut CPU, regnum: u8){
+    if c.keypad[regnum as usize]{
+        c.blocking = None;
+    }
+    else{
+        c.blocking = Some(c.registers[regnum as usize]);
+    }
+}
+
+fn delay_timer(c: &mut CPU, regnum: u8){
+    c.delay_timer.set_duration(c.registers[regnum as usize] as f64);
+}
+
+fn sound_timer(c: &mut CPU, regnum: u8){
+    c.sound_timer.set_duration(c.registers[regnum as usize] as f64);
 }
 
 fn add_vx_i(c: &mut CPU, regnum: u8){
@@ -301,11 +324,23 @@ fn get_sprite_addr(c: &mut CPU, regnum: u8){
     c.I = ((c.registers[regnum as usize] & 0x0F) * 5) as u16;
 }
 
-fn wait_for_key(c: &mut CPU, regnum: u8){
-    if c.keypad[regnum as usize]{
-        c.blocking = None;
+fn set_bcd(c: &mut CPU, regnum: u8){
+    //Do I need to check for I out of bounds?
+    let mut temp = c.registers[regnum as usize];
+    for i in (0..3).rev(){
+        c.memory[(c.I + i) as usize] = temp % 10;
+        temp /= 10;
     }
-    else{
-        c.blocking = Some(c.registers[regnum as usize]);
+}
+
+fn reg_dump(c: &mut CPU, regnum: u8){
+    for i in c.I..=c.I+(regnum as u16){
+        c.memory[i as usize] = c.registers[(i - c.I) as usize];
+    }
+}
+
+fn reg_load(c: &mut CPU, regnum: u8){
+    for i in c.I..=c.I+(regnum as u16){
+        c.registers[(i - c.I) as usize] = c.memory[i as usize];
     }
 }

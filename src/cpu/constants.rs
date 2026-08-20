@@ -31,7 +31,7 @@ pub(super) const LOOKUP: [fn(&mut CPU) -> Result<(), CpuError>;16] = [
     operations::set_reg,        //6XNN
     operations::add_reg,        //7XNN
     operations::reg_op,         //8XY?
-    operations::jmp_if_reg_eq,  //9XY0
+    operations::jmp_if_reg_neq, //9XY0
     operations::set_i_to_addr,  //ANNN
     operations::jmp_plus,       //BNNN
     operations::rand_and,       //CXNN
