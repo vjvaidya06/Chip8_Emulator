@@ -1,10 +1,11 @@
 use Chip_8::cpu::CPU;
+use Chip_8::keybindings::get_keybindings;
 use std::io::{self, Write};
 use std::collections::HashSet;
 
 //TODO: Implement blocking and timer
 fn main(){
-    let mut c = CPU::new();
+    let mut c = CPU::new(keybindings::get_keybindings());
     //println!("Hello world");
     let mut input = String::new();
     let mut break_points:HashSet<usize> = HashSet::new();
