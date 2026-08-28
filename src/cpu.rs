@@ -6,28 +6,34 @@ use std::cmp::max;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::Read;
+use std::io::Write;
 use std::io::stdout;
+use std::time::Duration;
 use crossterm::QueueableCommand;
+use crossterm::event::KeyModifiers;
+use crossterm::terminal::disable_raw_mode;
 use crossterm::{
     execute,
-    style::{self, Stylize}, cursor, terminal
+    style::{self, Stylize, Print}, cursor, terminal,
+    event::{self, Event, KeyCode},
 };
 use simply_colored::*;
 //Refactor later if needed
 //Set things back to private at the end
 #[allow(non_snake_case)]
 pub struct CPU{
-    memory: [u8;4096],
+    pub memory: [u8;4096],
     registers: [u8;16],
     I: u16,
     pub pc: usize,
     stack: stack::Stack,
-    keypad: [bool;16],
+    pub keypad: [bool;16],
     gfx: [bool;64*32],
     legacy_mode: bool,
     delay_timer: timer::Chip8Timer,
     sound_timer: timer::Chip8Timer,
-    //If blocking, set this to Some(key), where key is the key being waited for
+    //If blocking, set this to Some(register)
+    //Register is the register the next key press will be stored in
     blocking : Option<u8>,
     on_char: u8,
     off_char: u8,
@@ -102,15 +108,23 @@ impl CPU{
     pub fn draw_screen(&self, debug: bool){
         let mut stdout = stdout();
         if !debug{
-            if let Err(e) = execute!(stdout, terminal::Clear(terminal::ClearType::All), cursor::MoveTo(5, 5)){
+            if let Err(e) = execute!(stdout, terminal::Clear(terminal::ClearType::All), cursor::MoveTo(1, 1)){
+            // if let Err(e) = stdout.queue(cursor::MoveTo(1, 1)){
                 eprintln!("Terminal clear or cursor move failed, threw error: {e}");
                 std::process::exit(1);
             }
         }
-        println!();
-        println!("{}", "-".repeat(64));
+        // println!("\r");
+        // println!("{}\r", "-".repeat(64));
+        // TODO: might not need all these if lets
+        if let Err(e) = stdout.queue(Print(format!("\r\n{}\r", "-".repeat(64)))){
+            eprintln!("stdout failure: returned {e}");
+        }
         for i in 0..32{
-            print!("|");
+            // print!("|");
+            if let Err(e) = stdout.queue(Print("|")){
+                eprintln!("stdout failure: returned {e}");
+            }
             for j in 0..64{
                 let wrchar = match self.gfx[(64*i)+j]{
                     true => constants::COLORS[self.on_char as usize],
@@ -121,15 +135,24 @@ impl CPU{
                     std::process::exit(1);
                 }
             }
-            print!("|");
-            println!();
+            if let Err(e) = stdout.queue(Print("|\r\n")){
+                eprintln!("stdout failure: returned {e}");
+            }
+            // print!("|");
+            // println!("\r");
         }
-        println!("{}", "-".repeat(64));
+        // println!("{}\r", "-".repeat(64));
+        if let Err(e) = stdout.queue(Print(format!("{}\r", "-".repeat(64)))){
+            eprintln!("stdout failure: returned {e}");
+        }
+        if let Err(e) = stdout.flush(){
+            eprintln!("Flush failure, returned {e}");
+        }
     }
     pub fn decrement_timers(&mut self){
         self.delay_timer.update();
         if self.sound_timer.update(){
-            println!("BEEP");
+            println!("BEEP\r");
         }
     }
     pub fn toggle_key(&mut self, key: u8){
@@ -148,7 +171,7 @@ impl CPU{
             self.draw = false;
         }
         //If blocking, wait for a certain key press
-        match self.blocking{
+        /*match self.blocking{
             None => operations::perform_op(self)?,
             Some(key) => {
                 println!("Waiting for key {key}");
@@ -156,8 +179,44 @@ impl CPU{
                     self.blocking = None;
                 }
             }
+        }*/
+        //If not blocking, run the next instruction
+        if self.blocking.is_none(){
+            operations::perform_op(self)?;
         }
+        self.decrement_timers();
         Ok(())
+    }
+    //Assumes the terminal is in raw mode
+    pub fn set_keys(&mut self){
+        while let Ok(true) = event::poll(Duration::from_millis(0)){
+            if let Ok(Event::Key(key_event)) = event::read(){
+                if let KeyCode::Char(c) = key_event.code{
+                    if key_event.modifiers.contains(KeyModifiers::CONTROL){
+                        println!("Exiting");
+                        println!("Program counter at {:X}", self.pc);
+                        //TODO: RAII guard so I don't have to do this
+                        disable_raw_mode();
+                        std::process::exit(0);
+                    }
+                    if self.bindings.contains_key(&c){
+                        // println!("key {c} pressed\r");
+                        // println!("Found {c}, setting {} to true", self.bindings[&c]);
+                        if let Some(register) = self.blocking{
+                            println!("Setting register {register} to {}\r", self.bindings[&c]);
+                            self.registers[register as usize] = self.bindings[&c] as u8;
+                            self.blocking = None;
+                            println!("Reg: {}\r", self.registers[register as usize]);
+                        }
+                        self.keypad[self.bindings[&c]] = true;
+                        // self.print_keypad(None);
+                    }
+                }
+            }
+        }
+    }
+    pub fn reset_keys(&mut self){
+        self.keypad.fill(false);
     }
     //Below are all debug functions meant to be used with c8db
     pub fn print_all_reg(&self){

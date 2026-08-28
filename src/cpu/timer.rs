@@ -16,23 +16,15 @@ impl Chip8Timer{
     pub(super) fn set_duration(&mut self, new_duration: f64){
         self.start_time = Some(Instant::now());
         self.duration = new_duration;
+        // println!("Timer set to duration: {new_duration}");
     }
     //Returns true if timer has elapsed
     pub(super) fn update(&mut self) -> bool{
-        match self.start_time{
-            None => println!("Timer not set"),
-            Some(time) => {
-                let time_passed = time.elapsed().as_secs_f64();
-                if time_passed > 1.0/60.0{
-                    self.duration -= time_passed;
-                    if self.duration < 0.0{
-                        self.duration = 0.0;
-                    }
-                    if self.duration == 0.0{
-                        self.start_time = None;
-                        return true;
-                    }
-                }
+        if let Some(time) = self.start_time{
+            let time_passed = time.elapsed().as_secs_f64();
+            if time_passed > 1.0/60.0 && time_passed >= self.duration{
+                self.start_time = None;
+                return true;
             }
         }
         false
