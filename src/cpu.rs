@@ -51,22 +51,22 @@ impl CPU{
             Some(map) => map,
             None => {
                 HashMap::from([
-                ('1', 0),
-                ('2', 1),
-                ('a', 8),
-                ('3', 2),
-                ('4', 3),
-                ('c', 14),
+                ('1', 1),
+                ('2', 2),
+                ('a', 7),
+                ('3', 3),
+                ('4', 12),
+                ('c', 11),
                 ('q', 4),
-                ('x', 13),
+                ('x', 0),
                 ('v', 15),
                 ('w', 5),
-                ('d', 10),
-                ('r', 7),
+                ('d', 9),
+                ('r', 13),
                 ('e', 6),
-                ('f', 11),
-                ('s', 9),
-                ('z', 12),
+                ('f', 14),
+                ('s', 8),
+                ('z', 10),
             ])
             }
         };
@@ -152,7 +152,7 @@ impl CPU{
     pub fn decrement_timers(&mut self){
         self.delay_timer.update();
         if self.sound_timer.update(){
-            println!("BEEP\r");
+            // println!("BEEP\r");
         }
     }
     pub fn toggle_key(&mut self, key: u8){
