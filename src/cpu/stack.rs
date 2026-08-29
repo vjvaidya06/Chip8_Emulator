@@ -10,6 +10,7 @@ pub(super) struct Stack{
 }
 
 //push, pop
+//sp points to next writeable position
 impl Stack{
     pub fn new() -> Stack{
         Stack {
@@ -19,6 +20,8 @@ impl Stack{
     }
     pub fn pop(&mut self) -> Result<u16, CpuError>{
         if self.sp == 0{
+            // println!("Warning: Stack underflow, wrapping sp to 11\r");
+            // self.sp = 11;
             return Err(CpuError::StackUnderflowError);
         }
         self.sp -= 1;
@@ -28,7 +31,6 @@ impl Stack{
         if self.sp == 12{
             return Err(CpuError::StackOverflowError);
         }
-        //println!("pushing to stack");
         self.stack[self.sp as usize] = val;
         self.sp += 1;
         Ok(())
