@@ -133,7 +133,7 @@ pub(super) fn add_reg(c: &mut CPU) -> Result<(), CpuError>{
     let regnum = c.memory[c.pc] & 0x0F;
     // println!("Adding {:X} to register {regnum}", c.memory[c.pc+1]);
     // println!();
-    (c.registers[regnum as usize], _) = c.registers[regnum as usize].overflowing_add(c.memory[c.pc+1]);
+    c.registers[regnum as usize] = c.registers[regnum as usize].wrapping_add(c.memory[c.pc+1]);
     Ok(())
 }
 //8XY?
@@ -157,10 +157,11 @@ pub(super) fn reg_op(c: &mut CPU) -> Result<(), CpuError>{
             c.registers[regnum1 as usize] = res;
             if overflow {c.registers[0xF] = 1;} else {c.registers[0xF] = 0;}
         }
+        //TODO: Problem here
         0x5 => {
             let (res, overflow) = c.registers[regnum1 as usize].overflowing_sub(c.registers[regnum2 as usize]);
             c.registers[regnum1 as usize] = res;
-            if overflow {c.registers[0xF] = 1;} else {c.registers[0xF] = 0;}
+            if overflow {c.registers[0xF] = 0;} else {c.registers[0xF] = 1;}
         }
         0x6 => {
             let temp;
@@ -173,10 +174,11 @@ pub(super) fn reg_op(c: &mut CPU) -> Result<(), CpuError>{
             }
             c.registers[0xF] = temp;
         }
+        //TODO: Problem here
         0x7 => {
             let (res, overflow) = c.registers[regnum2 as usize].overflowing_sub(c.registers[regnum1 as usize]);
             c.registers[regnum1 as usize] = res;
-            if overflow {c.registers[0xF] = 1;} else {c.registers[0xF] = 0;}
+            if overflow {c.registers[0xF] = 0;} else {c.registers[0xF] = 1;}
         }
         0xE => {
             let temp;
@@ -216,7 +218,7 @@ pub(super) fn set_i_to_addr(c: &mut CPU) -> Result<(), CpuError>{
     Ok(())
 }
 
-//BNN
+//BNNN
 pub(super) fn jmp_plus(c: &mut CPU) -> Result<(), CpuError>{
     c.pc = (c.registers[0] as usize) + (decode_op(c.memory[c.pc], c.memory[c.pc+1]) & 0x0FFF) as usize;
     Ok(())
@@ -237,9 +239,13 @@ pub(super) fn draw_sprite(c: &mut CPU) -> Result<(), CpuError>{
     let regnum1 = c.memory[c.pc] & 0x0F;
     let regnum2 = (c.memory[c.pc+1] & 0xF0) >> 4;
     let n = c.memory[c.pc+1] & 0x0F;
-    //TODO: Fix
+    //TODO: out of bounds needs to wrap
+    //TODO: Still need to fix
+    //Will right to left wrap by default?
+    //What if I let the whole thing wrap?
     // let mut location = (64*(c.registers[regnum2 as usize] as usize)) + c.registers[regnum1 as usize] as usize - 2;
-    let mut location = (64*(c.registers[regnum2 as usize] as usize)) + c.registers[regnum1 as usize] as usize;
+    // If bigger, then wrap
+    let mut location = ((64*(c.registers[regnum2 as usize] as usize)) + c.registers[regnum1 as usize] as usize) % 2048;
     for i in 0..n{
         let bitmap: u8 = c.memory[(c.I + i as u16) as usize];
         //Fetch the top bit, xor it with the equivalent screen bit, 
@@ -253,9 +259,11 @@ pub(super) fn draw_sprite(c: &mut CPU) -> Result<(), CpuError>{
             }
             c.gfx[location] ^= bit;
             location += 1;
+            location %= 2048;
         }
         //64 - 8
         location += 56;
+        location %= 2048;
     }
     c.draw = true;
     Ok(())
@@ -300,12 +308,14 @@ fn get_delay(c: &mut CPU, regnum: u8){
 }
 
 fn wait_for_key(c: &mut CPU, regnum: u8){
-    if c.keypad[regnum as usize]{
+    /*if c.keypad[regnum as usize]{
         c.blocking = None;
     }
     else{
         c.blocking = Some(c.registers[regnum as usize]);
-    }
+    }*/
+    // println!("Blocking, waiting for {regnum}");
+    c.blocking = Some(regnum);
 }
 
 fn delay_timer(c: &mut CPU, regnum: u8){
