@@ -20,8 +20,6 @@ impl Stack{
     }
     pub fn pop(&mut self) -> Result<u16, CpuError>{
         if self.sp == 0{
-            // println!("Warning: Stack underflow, wrapping sp to 11\r");
-            // self.sp = 11;
             return Err(CpuError::StackUnderflowError);
         }
         self.sp -= 1;
