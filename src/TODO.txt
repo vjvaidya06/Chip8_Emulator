@@ -1,7 +1,0 @@
-Be able to print the screen
-
-Possible colors we'll store in a fixed size array
-
-In the cpu store an index for on and off.
-
-This will be how we set themes in the future
