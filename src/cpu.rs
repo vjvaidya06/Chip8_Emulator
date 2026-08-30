@@ -2,6 +2,7 @@ mod constants;
 mod operations;
 mod stack;
 mod timer;
+mod key;
 use std::cmp::max;
 use std::collections::HashMap;
 use std::fs::File;
@@ -26,7 +27,7 @@ pub struct CPU{
     registers: [u8;16],
     I: u16,
     pub pc: usize,
-    stack: stack::Stack,
+    stack: stack::Chip8Stack,
     pub keypad: [bool;16],
     gfx: [bool;64*32],
     legacy_mode: bool,
@@ -75,7 +76,7 @@ impl CPU{
             registers: [0;16],
             I: 0,
             pc: 0x200,
-            stack: stack::Stack::new(),
+            stack: stack::Chip8Stack::new(),
             keypad: [false;16],
             gfx: [false;64*32],
             legacy_mode: false,

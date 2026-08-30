@@ -4,16 +4,16 @@
 //Result<(), CpuError>;
 
 use super::CpuError;
-pub(super) struct Stack{
+pub(super) struct Chip8Stack{
     stack: [u16;12],
     sp: u8
 }
 
 //push, pop
 //sp points to next writeable position
-impl Stack{
-    pub fn new() -> Stack{
-        Stack {
+impl Chip8Stack{
+    pub fn new() -> Chip8Stack{
+        Chip8Stack {
             stack: [0;12],
             sp: 0
         }
