@@ -19,6 +19,8 @@ use crossterm::{
     event::{self, Event, KeyCode},
 };
 use simply_colored::*;
+use winit::window::Window;
+use std::rc::Rc;
 //Refactor later if needed
 //Set things back to private at the end
 #[allow(non_snake_case)]
@@ -154,6 +156,27 @@ impl CPU{
         self.delay_timer.update();
         if self.sound_timer.update(){
             // println!("BEEP\r");
+        }
+    }
+    pub fn valid_character(&self, key: char) -> bool{
+        self.bindings.contains_key(&key)
+    }
+    pub fn key_down(&mut self, key: char){
+        if self.bindings.contains_key(&key){
+            self.keypad[self.bindings[&key]] = true;
+        }
+    }
+    pub fn key_up(&mut self, key: char){
+        if self.bindings.contains_key(&key){
+            self.keypad[self.bindings[&key]] = false;
+        }
+    }
+    pub fn draw_screen_winit<'a>(&self, buffer: &mut softbuffer::Buffer<'a, Rc<Window>, Rc<Window>>){
+        for i in 0..buffer.len(){
+            buffer[i] = match self.gfx[i]{
+                true => 0x00FFFFFF,
+                false => 0x00000000,
+            }
         }
     }
     pub fn toggle_key(&mut self, key: u8){

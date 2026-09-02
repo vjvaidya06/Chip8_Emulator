@@ -65,3 +65,5 @@ pub const COLORS: [Color; 17] = [
         Color::White,
         // Custom / Dynamic Values
     ];
+
+pub(super) const KEYDELAY: u128 = 50;

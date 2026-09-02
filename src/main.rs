@@ -1,14 +1,28 @@
 mod cpu;
 mod keybindings;
+mod winit_handler;
 use std::fs;
+use std::num::NonZeroU32;
 use std::process::exit;
 use std::process::ExitCode;
+use std::rc::Rc;
+use std::time::Duration;
 use std::time::Instant;
 use cpu::{CPU,CpuError};
 use crossterm::terminal::{enable_raw_mode, disable_raw_mode};
+use winit::event_loop;
+use winit::raw_window_handle::HasRawDisplayHandle;
 use std::{thread, time};
+use winit::{
+    event::{ElementState, Event, WindowEvent},
+    event_loop::{ControlFlow, EventLoop},
+    keyboard::KeyCode,
+    window::Window
+};
+use softbuffer::{Context, Surface};
+use winit_handler::Chip8Frontend;
 
-fn main() -> ExitCode {
+fn older_main() -> ExitCode {
     //set_up_graphics()
     //set_up_input()
     const TIME_PER_INSTRUCTION: f64 = 0.01;
@@ -70,4 +84,59 @@ fn main() -> ExitCode {
         }
     }
     disable_raw_mode();
+}
+
+fn old_main() -> ExitCode{
+    //Just testing, remove all these unwraps later
+    let event_loop = EventLoop::new().expect("Winit event loop creation fail");
+    event_loop.set_control_flow(ControlFlow::Poll);
+    let window = event_loop.create_window(Window::default_attributes()).expect("OS error when creating winit window");
+    let context = Context::new(event_loop.owned_display_handle()).expect("Context creation fail");
+    let mut surface = Surface::new(&context, window).expect("Surface creation fail");
+    surface.resize(NonZeroU32::new(64).unwrap(), NonZeroU32::new(32).unwrap()).unwrap();
+    let mut buffer = surface.buffer_mut().unwrap();
+
+    for index in 0..2048{
+        buffer[index] = 0x00000000;
+    }
+    buffer[1000] = 0x00FFFFFF;
+    buffer.present().unwrap();
+    
+    std::thread::sleep(Duration::from_secs(10));
+    
+    // let mut surface = Surface::new(&context, )
+    ExitCode::from(0)
+}
+
+fn main() -> ExitCode{
+    let bindings = keybindings::get_keybindings();
+
+    let mut cpu = CPU::new(bindings);
+
+    let args: Vec<String> = std::env::args().collect();
+    if args.iter().any(|s| s == "-l") || args.iter().any(|s| s == "--legacy"){
+        cpu.toggle_legacy_mode();
+    }
+    if args.len() < 2{
+        println!("Please include the program in the args");
+        exit(0);
+    }
+    println!("Loading game {}", &args[args.len()-1]);
+    if let Err(e) = cpu.load_game(&args[args.len()-1]){
+        eprintln!("Error loading file, threw error {e}");
+        exit(1);
+    }
+
+    let Ok(event_loop) = EventLoop::new() else{
+        println!("Error creating event loop");
+        return ExitCode::from(1);
+    };
+
+    event_loop.set_control_flow(ControlFlow::Poll);
+
+    let mut winit_app = Chip8Frontend::new(cpu, 0.01);
+
+    event_loop.run_app(&mut winit_app);
+
+    ExitCode::from(0)
 }
