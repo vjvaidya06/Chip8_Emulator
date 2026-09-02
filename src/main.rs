@@ -134,7 +134,7 @@ fn main() -> ExitCode{
 
     event_loop.set_control_flow(ControlFlow::Poll);
 
-    let mut winit_app = Chip8Frontend::new(cpu, 0.01);
+    let mut winit_app = Chip8Frontend::new(cpu, 0.005);
 
     event_loop.run_app(&mut winit_app);
 

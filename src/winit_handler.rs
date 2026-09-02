@@ -45,7 +45,6 @@ impl ApplicationHandler for Chip8Frontend{
                 println!("Softbuffer context creation fail");
                 std::process::exit(1);
             };
-            //TODO: fix
             let Ok(mut surface) = softbuffer::Surface::new(&ctx, self.window.as_ref().unwrap().clone()) else{
                 println!("Softbuffer surface creation fail");
                 std::process::exit(1);
@@ -65,10 +64,15 @@ impl ApplicationHandler for Chip8Frontend{
             WindowEvent::RedrawRequested => {
                 // println!("Redraw logic");
                 if let Some(surface) = &mut self.surface{
-                    let mut buffer = surface.buffer_mut().unwrap();
+                    let Ok(mut buffer) = surface.buffer_mut() else{
+                        println!("surface.buffer_mut() fail");
+                        return;
+                    };
                     self.cpu.draw_screen_winit(&mut buffer);
-                    //TODO: Remove
-                    buffer.present().unwrap();
+
+                    if let Err(e) = buffer.present(){
+                        println!("Softbuffer buffer.present failed with error {e}");
+                    }
                 }
             }
             WindowEvent::CloseRequested => event_loop.exit(),
@@ -103,6 +107,7 @@ impl ApplicationHandler for Chip8Frontend{
                     window.request_redraw();
                 }
             }
+            self.last_instruction_time = Instant::now();
         }
     }
 }
