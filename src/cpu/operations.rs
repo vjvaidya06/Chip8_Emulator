@@ -142,6 +142,8 @@ pub(super) fn add_reg(c: &mut CPU) -> Result<(), CpuError>{
 //We need a case for when we're touching vf directly
 //The answer is that the flag wins
 //Always set VF last
+//In regular Chip 8, &, | and ^ will set VF to 0
+//TODO: In SuperChip mode (when we implement that), remove this behavior
 pub(super) fn reg_op(c: &mut CPU) -> Result<(), CpuError>{
     let regnum1: u8 = c.memory[c.pc] & 0x0F;
     let regnum2: u8 = c.memory[c.pc+1] >> 4;
@@ -149,15 +151,23 @@ pub(super) fn reg_op(c: &mut CPU) -> Result<(), CpuError>{
     //println!("opnum: {:X}, regnum1: {regnum1}, regnum2: {regnum2}", opnum);
     match opnum{
         0x0 => c.registers[regnum1 as usize] = c.registers[regnum2 as usize],
-        0x1 => c.registers[regnum1 as usize] |= c.registers[regnum2 as usize],
-        0x2 => c.registers[regnum1 as usize] &= c.registers[regnum2 as usize],
-        0x3 => c.registers[regnum1 as usize] ^= c.registers[regnum2 as usize],
+        0x1 => {
+            c.registers[regnum1 as usize] |= c.registers[regnum2 as usize];
+            c.registers[0xF] = 0;
+        }
+        0x2 => {
+            c.registers[regnum1 as usize] &= c.registers[regnum2 as usize];
+            c.registers[0xF] = 0;
+        }
+        0x3 => {
+            c.registers[regnum1 as usize] ^= c.registers[regnum2 as usize];
+            c.registers[0xF] = 0;
+        }
         0x4 => {
             let (res, overflow) = c.registers[regnum1 as usize].overflowing_add(c.registers[regnum2 as usize]);
             c.registers[regnum1 as usize] = res;
             if overflow {c.registers[0xF] = 1;} else {c.registers[0xF] = 0;}
         }
-        //TODO: Problem here
         0x5 => {
             let (res, overflow) = c.registers[regnum1 as usize].overflowing_sub(c.registers[regnum2 as usize]);
             c.registers[regnum1 as usize] = res;
@@ -174,7 +184,6 @@ pub(super) fn reg_op(c: &mut CPU) -> Result<(), CpuError>{
             }
             c.registers[0xF] = temp;
         }
-        //TODO: Problem here
         0x7 => {
             let (res, overflow) = c.registers[regnum2 as usize].overflowing_sub(c.registers[regnum1 as usize]);
             c.registers[regnum1 as usize] = res;
@@ -239,31 +248,32 @@ pub(super) fn draw_sprite(c: &mut CPU) -> Result<(), CpuError>{
     let regnum1 = c.memory[c.pc] & 0x0F;
     let regnum2 = (c.memory[c.pc+1] & 0xF0) >> 4;
     let n = c.memory[c.pc+1] & 0x0F;
-    //TODO: out of bounds needs to wrap
-    //TODO: Still need to fix
-    //Will right to left wrap by default?
-    //What if I let the whole thing wrap?
-    // let mut location = (64*(c.registers[regnum2 as usize] as usize)) + c.registers[regnum1 as usize] as usize - 2;
-    // If bigger, then wrap
-    let mut location = ((64*(c.registers[regnum2 as usize] as usize)) + c.registers[regnum1 as usize] as usize) % 2048;
+    // let mut location = ((64*(c.registers[regnum2 as usize] as usize)) + (c.registers[regnum1 as usize] % 64) as usize) % 2048;
+    let location = (64*(c.registers[regnum2 as usize] % 32) as usize) + (c.registers[regnum1 as usize] % 64) as usize;
     for i in 0..n{
+        let location = match c.wrapping{
+            true => (location + (i as usize)*64) % 2048,
+            false if (location + (i as usize)*64) < 2048 => location + (i as usize)*64,
+            _ => break
+        };
         let bitmap: u8 = c.memory[(c.I + i as u16) as usize];
-        //Fetch the top bit, xor it with the equivalent screen bit, 
-        //update the collision flag if needed
         for j in 0..8{
-            // let bit = if ((bitmap << j) & 0b10000000) >> 7 == 1 {true} else {false};
+            // println!("{}", (64*(location/64)));
+            let location = match c.wrapping{
+                true if ((location + j) / 64) != (location / 64) => {
+                    let row = (location / 64)*64;
+                    row + ((location - row + j) % 64)
+                }
+                false if ((location + j) / 64) != (location / 64) => break,
+                _ => location + j
+            };
             let bit = ((bitmap << j) & 0b10000000) >> 7 == 1;
             if bit && c.gfx[location]{
                 //Collision detected
                 c.registers[0x0F] = 1;
             }
             c.gfx[location] ^= bit;
-            location += 1;
-            location %= 2048;
         }
-        //64 - 8
-        location += 56;
-        location %= 2048;
     }
     c.draw = true;
     Ok(())
@@ -347,10 +357,16 @@ fn reg_dump(c: &mut CPU, regnum: u8){
     for i in c.I..=c.I+(regnum as u16){
         c.memory[i as usize] = c.registers[(i - c.I) as usize];
     }
+    if c.legacy_mode{
+        c.I += (regnum + 1) as u16;
+    }
 }
 
 fn reg_load(c: &mut CPU, regnum: u8){
     for i in c.I..=c.I+(regnum as u16){
         c.registers[(i - c.I) as usize] = c.memory[i as usize];
+    }
+    if c.legacy_mode{
+        c.I += (regnum + 1) as u16;
     }
 }

@@ -117,6 +117,9 @@ fn main() -> ExitCode{
     if args.iter().any(|s| s == "-l") || args.iter().any(|s| s == "--legacy"){
         cpu.toggle_legacy_mode();
     }
+    if args.iter().any(|s| s == "-w") || args.iter().any(|s| s == "--wrapping"){
+        cpu.toggle_wrapping();
+    }
     if args.len() < 2{
         println!("Please include the program in the args");
         exit(0);
