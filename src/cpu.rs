@@ -34,6 +34,7 @@ pub struct CPU{
     gfx: [bool;64*32],
     legacy_mode: bool,
     wrapping: bool,
+    odds: bool,
     delay_timer: timer::Chip8Timer,
     sound_timer: timer::Chip8Timer,
     //If blocking, set this to Some(register)
@@ -84,6 +85,7 @@ impl CPU{
             gfx: [false;64*32],
             legacy_mode: false,
             wrapping: false,
+            odds: false,
             delay_timer: timer::Chip8Timer::new(None, 0.0),
             sound_timer: timer::Chip8Timer::new(None, 0.0),
             blocking: None,
@@ -106,6 +108,11 @@ impl CPU{
     pub fn toggle_wrapping(&mut self){
         self.wrapping = !self.wrapping;
         println!("Wrapping: {}", self.wrapping);
+    }
+    //Some roms need to be able to jump to odd addresses apparently
+    pub fn toggle_odds(&mut self){
+        self.odds = !self.odds;
+        println!("Allow odd memory addresses: {}", self.odds);
     }
 
     //How should the emulator behave when open fails?

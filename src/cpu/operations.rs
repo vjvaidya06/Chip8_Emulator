@@ -29,7 +29,7 @@ pub fn perform_op(c: &mut CPU) -> Result<(), CpuError>{
     if c.pc >= 0x0FFF {
         return Err(CpuError::ProgramCounterOutOfBounds { pc: c.pc, max_memory: (4096) });
     }
-    if c.pc % 2 != 0 {
+    if c.pc % 2 != 0 && !c.odds {
         return Err(CpuError::ProgramCounterInvalidLocation(c.pc));
     }
 //    println!("Program Counter: {:X} Performing: {:X}", c.pc, decode_op(c.memory[c.pc], c.memory[c.pc+1]));

@@ -20,7 +20,6 @@ impl Chip8Timer{
         // println!("Timer set to duration: {new_duration}");
     }
     //Returns true if timer has elapsed
-    //TODO: timer does not store the delay properly
     pub(super) fn update(&mut self) -> bool{
         if let Some(time) = self.last_check{
             let time_passed = time.elapsed().as_secs_f64();
