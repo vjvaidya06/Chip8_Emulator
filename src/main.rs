@@ -113,12 +113,16 @@ fn main() -> ExitCode{
 
     let mut cpu = CPU::new(bindings);
 
+    //TODO: Make more efficient
     let args: Vec<String> = std::env::args().collect();
     if args.iter().any(|s| s == "-l") || args.iter().any(|s| s == "--legacy"){
         cpu.toggle_legacy_mode();
     }
     if args.iter().any(|s| s == "-w") || args.iter().any(|s| s == "--wrapping"){
         cpu.toggle_wrapping();
+    }
+    if args.iter().any(|s| s == "-o") || args.iter().any(|s| s == "--odds"){
+        cpu.toggle_odds();
     }
     if args.len() < 2{
         println!("Please include the program in the args");

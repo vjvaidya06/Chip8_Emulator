@@ -50,6 +50,7 @@ impl ApplicationHandler for Chip8Frontend{
                 std::process::exit(1);
             };
             surface.resize(NonZeroU32::new(64).unwrap(), NonZeroU32::new(32).unwrap()).unwrap();
+            // surface.resize(NonZeroU32::new(640).unwrap(), NonZeroU32::new(320).unwrap()).unwrap();
             self.surface = Some(surface);
         }
     }
@@ -68,7 +69,7 @@ impl ApplicationHandler for Chip8Frontend{
                         println!("surface.buffer_mut() fail");
                         return;
                     };
-                    self.cpu.draw_screen_winit(&mut buffer);
+                    self.cpu.draw_screen_softbuffer(&mut buffer);
 
                     if let Err(e) = buffer.present(){
                         println!("Softbuffer buffer.present failed with error {e}");
@@ -90,7 +91,7 @@ impl ApplicationHandler for Chip8Frontend{
                 }
             }
             _ => {
-                println!("Event: {:?}", event);
+                // println!("Event: {:?}", event);
             }
         }
     }

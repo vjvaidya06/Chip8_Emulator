@@ -184,13 +184,21 @@ impl CPU{
             self.keypad[self.bindings[&key]] = false;
         }
     }
-    pub fn draw_screen_winit<'a>(&self, buffer: &mut softbuffer::Buffer<'a, Rc<Window>, Rc<Window>>){
+    pub fn draw_screen_softbuffer<'a>(&self, buffer: &mut softbuffer::Buffer<'a, Rc<Window>, Rc<Window>>){
         for i in 0..buffer.len(){
-            buffer[i] = match self.gfx[i]{
+          buffer[i] = match self.gfx[i]{
                 true => 0x00FFFFFF,
                 false => 0x00000000,
             }
         }
+        // TODO: Find a way to scale this
+        // let scale = buffer.len() / self.gfx.len();
+        // for i in 0..buffer.len(){
+        //     buffer[i] = match self.gfx[i / scale]{
+        //         true => 0x00FFFFFF,
+        //         false => 0x00000000,
+        //     }
+        // }
     }
     pub fn toggle_key(&mut self, key: u8){
         if key > 15{
